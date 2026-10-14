@@ -1,0 +1,18 @@
+[project]
+site_name = "Graftway"
+site_description = "High-performance dependency graphs powering smarter builds, CI, and developer tooling."
+site_url = "https://ofek.github.io/graftway/"
+repo_url = "https://github.com/ofek/graftway"
+repo_name = "ofek/graftway"
+docs_dir = "docs"
+site_dir = "site"
+nav = [
+  { "Home" = "index.md" },
+  { "Meta" = [
+    { "Contributing" = "meta/contributing.md" },
+    { "Changelog" = "meta/changelog.md" },
+  ] },
+]
+
+[project.theme]
+language = "en"

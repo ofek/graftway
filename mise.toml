@@ -1,0 +1,180 @@
+min_version = "2026.10.0"
+
+[vars]
+mr_boxington_version = "1.24.0"
+
+[settings]
+activate_aggressive = true
+idiomatic_version_file_enable_tools = ["rust"]
+lockfile = true
+# Keep personal global tools outside this repository's locked installation.
+enable_tools = [
+  "rust",
+  "python",
+  "uv",
+  "aqua:tombi-toml/tombi",
+  "aqua:rvben/rumdl",
+  "aqua:rhysd/actionlint",
+  "aqua:google/yamlfmt",
+  "aqua:loeffel-io/ls-lint",
+  "editorconfig-checker",
+  "aqua:lycheeverse/lychee",
+  "kingfisher",
+  "github:jdx/mr-boxington",
+  "cargo:mbx",
+  "aqua:EmbarkStudios/cargo-deny",
+  "aqua:rustsec/rustsec/cargo-audit",
+]
+
+[tools]
+python = "3.13.16"
+uv = "0.13.1"
+"aqua:tombi-toml/tombi" = "1.8.4"
+"aqua:rvben/rumdl" = "0.2.79"
+"aqua:rhysd/actionlint" = "1.7.12"
+"aqua:google/yamlfmt" = "0.21.0"
+"aqua:loeffel-io/ls-lint" = "2.3.1"
+editorconfig-checker = "4.0.2"
+"aqua:lycheeverse/lychee" = "0.24.2"
+kingfisher = "2.13.0"
+"github:jdx/mr-boxington" = { version = "{{vars.mr_boxington_version}}", os = ["linux", "windows", "macos/arm64"] }
+# Upstream release archives do not include Intel macOS.
+"cargo:mbx" = { version = "{{vars.mr_boxington_version}}", os = ["macos/x64"], locked = true }
+"aqua:EmbarkStudios/cargo-deny" = "0.20.2"
+"aqua:rustsec/rustsec/cargo-audit" = "0.22.2"
+
+[env]
+UV_PYTHON = { value = "{{ tools.python.path }}/{{ os(windows='python.exe', linux='bin/python', macos='bin/python') }}", tools = true }
+
+[tasks.fmt]
+description = "Format repository sources"
+run = [
+  "tombi format .",
+  "yamlfmt .",
+  "rumdl check --fix .",
+  { task = "fmt:python" },
+  "python scripts/files.py format",
+]
+
+[tasks."fmt:python"]
+description = "Format Python sources; accepts Ruff arguments"
+raw_args = true
+run = "uv run --locked --exact -- ruff format scripts"
+
+[tasks."fmt:rust"]
+description = "Format Rust workspace members"
+raw_args = true
+run = "mbx +{{tools.rust.version}} fmt --all"
+
+[tasks."fmt:rust:check"]
+description = "Check Rust formatting without changing files"
+run = "mbx +{{tools.rust.version}} fmt --all --check"
+
+[tasks."fmt:check"]
+description = "Check formatting without changing files"
+run = [
+  "tombi format --check .",
+  "yamlfmt -lint .",
+  "rumdl check .",
+  "uv run --locked --exact -- ruff format --check scripts",
+  "python scripts/files.py check",
+]
+
+[tasks.lint]
+description = "Lint sources, workflows, prose, paths, and local links"
+depends = ["lint:python", "lint:workflows", "docs:check"]
+run = [
+  "tombi lint .",
+  "ls-lint",
+  "python scripts/files.py links",
+]
+
+[tasks."lint:python"]
+description = "Lint Python sources; accepts Ruff arguments such as --fix"
+raw_args = true
+run = "uv run --locked --exact -- ruff check scripts"
+
+[tasks."lint:rust"]
+description = "Lint Rust workspace members with Clippy"
+run = "mbx +{{tools.rust.version}} clippy --locked --workspace --all-targets --all-features -- -D warnings"
+
+[tasks."lint:workflows"]
+description = "Validate GitHub Actions syntax, policy, and security"
+run = [
+  "actionlint -shellcheck= -pyflakes=",
+  "uv run --locked --exact -- check-jsonschema --schemafile .github/workflow-policy.schema.yml .github/workflows/*.y*ml",
+  "uv run --locked --exact -- zizmor --offline --no-progress --persona auditor --min-severity low .github/workflows",
+]
+
+[tasks.test]
+description = "Run repository tests"
+depends = ["test:python"]
+
+[tasks."test:python"]
+description = "Run infrastructure tests; accepts pytest arguments such as -k"
+raw_args = true
+run = "uv run --locked --exact -- pytest"
+
+[tasks."test:rust"]
+description = "Test Rust workspace members; accepts Cargo test arguments"
+depends = ["check:rust"]
+raw_args = true
+run = "mbx +{{tools.rust.version}} test --locked --workspace --all-features"
+
+[tasks."check:rust"]
+description = "Check all Rust workspace targets and features"
+run = "mbx +{{tools.rust.version}} check --locked --workspace --all-targets --all-features"
+
+[tasks.check]
+description = "Run all applicable formatting, lint, test, security, and docs checks"
+depends = ["fmt:check", "lint", "test", "security:check", "docs:build", "release:dry-run"]
+
+[tasks."docs:check"]
+description = "Check that documentation navigation matches source pages"
+run = "python scripts/docs.py navigation"
+
+[tasks."docs:build"]
+description = "Build and validate the documentation under its configured subpath"
+depends = ["docs:check"]
+run = [
+  "uv run --locked --exact -- zensical build --clean --strict",
+  "python scripts/docs.py links",
+]
+
+[tasks."docs:serve"]
+description = "Preview the documentation on localhost"
+depends = ["docs:check"]
+raw_args = true
+run = "uv run --locked --exact -- zensical serve --dev-addr 127.0.0.1:8000"
+
+[tasks."security:check"]
+description = "Scan secrets and check infrastructure dependencies"
+depends = ["security:secrets", "security:licenses", "security:python"]
+
+[tasks."security:secrets"]
+description = "Scan current sources, staged changes, and Git history for secrets"
+run = "python scripts/scan_secrets.py"
+
+[tasks."security:licenses"]
+description = "Check Python dependency licenses"
+raw_args = true
+run = "uv run --locked --exact -- pip-licenses"
+
+[tasks."security:python"]
+description = "Audit the locked Python dependencies for vulnerabilities"
+run = "uv audit --locked --preview-features audit-command"
+
+[tasks."security:rust"]
+description = "Check Rust dependency licenses and advisories"
+run = [
+  "mbx +{{tools.rust.version}} deny --locked check",
+  "mbx +{{tools.rust.version}} audit --file Cargo.lock --deny warnings",
+]
+
+[tasks."release:dry-run"]
+description = "Validate release configuration without producing or publishing artifacts"
+run = "python scripts/release.py dry-run"
+
+[tasks."release:verify"]
+description = "Verify release readiness; fail while runtime publication is unavailable"
+run = "python scripts/release.py verify"

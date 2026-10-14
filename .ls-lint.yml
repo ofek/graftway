@@ -1,0 +1,18 @@
+ls:
+  .dir: regex:[a-z0-9._-]+
+  .*: regex:[a-z0-9._-]*
+  .md: regex:[a-z0-9._-]+ | regex:(AGENTS|README|CONTRIBUTING|SECURITY|CHANGELOG)
+  .toml: regex:[a-z0-9._-]+ | regex:Cargo
+  .lock: regex:[a-z0-9._-]+ | regex:Cargo
+  .: regex:[a-z0-9._-]+ | regex:(LICENSE-MIT|LICENSE-APACHE|CNAME|NOTICE)
+
+ignore:
+  - .git
+  - .venv
+  - site
+  - target
+  - .cache
+  - .ruff_cache
+  - .rumdl_cache
+  - .pytest_cache
+  - '**/__pycache__'

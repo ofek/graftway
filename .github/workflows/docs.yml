@@ -1,0 +1,80 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Zensical's clean builds remove the checkout's .cache directory.
+  UV_CACHE_DIR: ${{ github.workspace }}/../.uv-cache
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build documentation
+    if: github.repository == 'ofek/graftway' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read mise version
+        id: mise-version
+        shell: pwsh
+        run: |
+          $bootstrapMiseVersion = (Get-Content -LiteralPath .mise-version -Raw).Trim()
+          "version=$bootstrapMiseVersion" >> $env:GITHUB_OUTPUT
+      - name: Install development tools
+        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+        with:
+          version: ${{ steps.mise-version.outputs.version }}
+          cache: true
+          cache_save: ${{ github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+          cache_key: graftway-tools-v1-${{ runner.os }}-${{ runner.arch }}-ubuntu-24.04-${{ hashFiles('.mise-version', 'mise.toml', 'mise.lock', 'rust-toolchain.toml') }}
+          persist_github_token: false
+      - name: Restore Python package downloads
+        id: uv-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.UV_CACHE_DIR }}
+          key: graftway-uv-v1-${{ runner.os }}-${{ runner.arch }}-ubuntu-24.04-${{ hashFiles('mise.toml', 'pyproject.toml', 'uv.lock') }}
+      - name: Lint repository
+        run: mise run lint
+      - name: Build documentation
+        run: mise run docs:build
+      - name: Save Python package downloads
+        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.uv-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.UV_CACHE_DIR }}
+          key: ${{ steps.uv-cache.outputs.cache-primary-key }}
+      - name: Upload documentation artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  deploy:
+    name: Deploy documentation
+    needs: build
+    if: github.repository == 'ofek/graftway' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write # Publish the default-branch build artifact.
+      id-token: write # Authenticate the Pages deployment with OIDC.
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
