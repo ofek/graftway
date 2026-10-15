@@ -1,0 +1,10 @@
+filters:
+  exclude:
+    - .venv/
+    - site/
+    - target/
+    - .cache/
+    - .ruff_cache/
+    - .pytest_cache/
+    - .rumdl_cache/
+    - '**/__pycache__/'

@@ -1,0 +1,8 @@
+[format.rules]
+indent-width = 2
+
+[files]
+exclude = [".venv/**", "site/**", "target/**", ".cache/**"]
+
+[schema]
+enabled = false

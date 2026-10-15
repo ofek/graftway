@@ -1,0 +1,12 @@
+[global]
+disable = ["MD013"]
+exclude = [".venv", "site", "target", ".cache"]
+
+[MD004]
+style = "dash"
+
+[MD029]
+style = "one"
+
+[per-file-ignores]
+".github/pull_request_template.md" = ["MD033", "MD041"]

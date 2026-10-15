@@ -1,0 +1,14 @@
+/target/
+/.venv/
+/site/
+/.cache/
+/.ruff_cache/
+/.rumdl_cache/
+/.pytest_cache/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example

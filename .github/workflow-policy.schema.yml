@@ -1,0 +1,18 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: GitHub Actions workflow policy
+type: object
+properties:
+  jobs:
+    type: object
+    additionalProperties:
+      type: object
+      properties:
+        steps:
+          type: array
+          items:
+            type: object
+            required: [name]
+            properties:
+              name:
+                type: string
+                pattern: '\S'
