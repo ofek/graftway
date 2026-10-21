@@ -10,7 +10,7 @@ dev = [
   "check-jsonschema==0.38.2",
   "pip-licenses==5.5.5",
   "pytest==9.1.1",
-  "ruff==0.17.0",
+  "ruff==0.17.1",
   "zensical==0.0.70",
   "zizmor==1.30.1",
 ]
